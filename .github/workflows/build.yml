@@ -18,7 +18,7 @@ jobs:
 
       - name: Download latest HopToDesk .deb
         run: curl -L -o hoptodesk.deb https://www.hoptodesk.com/hoptodesk.deb
-
+        
       - name: Extract version & SHA256
         id: vars
         run: |
@@ -46,6 +46,8 @@ jobs:
             Automated update of HopToDesk Flatpak manifest to version **${{ steps.vars.outputs.version }}**.
           labels: automated-update
 
+  # Removed duplicate build-flatpak job definition
+
   build-flatpak:
     needs: update-manifest
     runs-on: ubuntu-latest
@@ -56,7 +58,6 @@ jobs:
             distro: ubuntu18.04
           - arch: x86_64
             distro: ubuntu20.04
-
     steps:
       - uses: actions/checkout@v3
       - uses: docker/setup-qemu-action@v2
@@ -73,6 +74,7 @@ jobs:
             DEBIAN_FRONTEND=noninteractive \
               apt-get install -y --no-install-recommends \
                 ca-certificates git flatpak flatpak-builder patch
+                ca-certificates git flatpak flatpak-builder
             update-ca-certificates
             rm -rf /var/lib/apt/lists/*
           run: |
