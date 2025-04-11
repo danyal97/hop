@@ -1,0 +1,65 @@
+name: Build HopToDesk Flatpak
+
+on:
+  pull_request:
+    paths:
+      - 'com.hoptodesk.HopToDesk.json'
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-flatpak:
+    name: 🧪 Validate Flatpak build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            distro: ubuntu18.04
+          - arch: x86_64
+            distro: ubuntu20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup QEMU for multi‑arch
+        uses: docker/setup-qemu-action@v2
+
+      - name: Build HopToDesk Flatpak on ${{ matrix.arch }} / ${{ matrix.distro }}
+        uses: rustdesk-org/run-on-arch-action@amd64-support
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          install: |
+            set -eux
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive \
+              apt-get install -y --no-install-recommends \
+                ca-certificates \
+                git \
+                flatpak \
+                flatpak-builder
+            update-ca-certificates
+            rm -rf /var/lib/apt/lists/*
+          run: |
+            set -eux
+
+            # fresh clone of shared-modules
+            rm -rf shared-modules
+            git clone https://github.com/flathub/shared-modules.git --depth=1
+
+            # add Flathub in user mode
+            flatpak --user remote-add --if-not-exists flathub \
+              https://dl.flathub.org/repo/flathub.flatpakrepo
+
+            # build the manifest
+            flatpak-builder \
+              --force-clean \
+              --install-deps-from=flathub \
+              --user \
+              --repo=repo \
+              build-dir \
+              com.hoptodesk.HopToDesk.json
