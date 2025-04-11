@@ -55,7 +55,6 @@ jobs:
             flatpak --user remote-add --if-not-exists flathub \
               https://dl.flathub.org/repo/flathub.flatpakrepo
 
-
             # build the manifest
             flatpak-builder \
               --force-clean \
