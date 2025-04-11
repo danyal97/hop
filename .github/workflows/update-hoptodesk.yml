@@ -1,0 +1,45 @@
+name: Check for HopToDesk updates
+
+on:
+  schedule:
+    # daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-manifest:
+    name: 🚀 Check for new HopToDesk release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Download latest HopToDesk .deb
+        run: |
+          curl -L -o hoptodesk.deb https://www.hoptodesk.com/hoptodesk.deb
+
+      - name: Extract version & SHA256
+        id: vars
+        run: |
+          VERSION=$(dpkg-deb -f hoptodesk.deb Version | cut -d'-' -f1)
+          SHA256=$(sha256sum hoptodesk.deb | cut -d' ' -f1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Bump Flatpak manifest
+        run: |
+          NEW_SHA="${{ steps.vars.outputs.sha256 }}"
+          DEB_URL_LINE=$(grep -n "https://www.hoptodesk.com/hoptodesk.deb" com.hoptodesk.HopToDesk.json | cut -d':' -f1)
+          SHA_LINE=$((DEB_URL_LINE + 1))
+          sed -i "${SHA_LINE}s/\"sha256\": \"[0-9a-f]\+\"/\"sha256\": \"$NEW_SHA\"/" com.hoptodesk.HopToDesk.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update-hoptodesk-${{ steps.vars.outputs.version }}
+          title: "Update HopToDesk to v${{ steps.vars.outputs.version }}"
+          body: |
+            Automated update of HopToDesk Flatpak manifest to version \
+            **${{ steps.vars.outputs.version }}**.
+          labels: automated-update
