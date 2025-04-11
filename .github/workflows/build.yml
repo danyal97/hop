@@ -97,3 +97,18 @@ jobs:
               --repo=repo \
               build-dir \
               com.hoptodesk.HopToDesk.json
+      
+      - name: Upload Flatpak Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoptodesk-${{ matrix.arch }}
+          path: ./hoptodesk-${{ matrix.arch }}.flatpak
+
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: hoptodesk-${{ matrix.arch }}.flatpak
+          asset_name: hoptodesk-${{ matrix.arch }}.flatpak
+          tag: ${{ github.ref }}
