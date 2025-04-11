@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 0 * * *"   # Runs daily at midnight UTC
   workflow_dispatch:      # Allows manual triggering
+  push:
+    branches:
+      - main
+      - master
 
 env:
   # You can adjust the default values or remove them if not needed.
@@ -72,6 +76,7 @@ jobs:
       - name: Upload Flatpak Bundle as Release Asset
         uses: softprops/action-gh-release@v1
         with:
+        
           tag_name: ${{ env.VERSION }}
           files: |
             HopToDesk-${VERSION}.flatpak
