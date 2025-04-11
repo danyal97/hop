@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=HopToDesk
+GenericName=Remote Desktop Software
+Comment=Free Remote Desktop Software. Easily access remote devices securely with end-to-end encryption
+Exec=hoptodesk %u
+Icon=com.hoptodesk.HopToDesk
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Network;RemoteAccess;GTK;
+Keywords=internet;
+
