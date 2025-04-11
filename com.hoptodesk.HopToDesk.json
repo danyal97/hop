@@ -28,7 +28,7 @@
           {
               "type": "archive",
               "url": "https://github.com/jordansissel/xdotool/archive/v3.20211022.1/xdotool-3.20211022.1.tar.gz",
-              "sha256": "82b15a944a5e82fee15e0f6116bd9f642bc3d0bb6989fc0ca5ad9dfe35de0847",
+              "sha256": "7da6190d9cbc0be43c379d415cfd43afd73dcf449e614825734e3d50d708fa32",
               "x-checker-data": {
                   "type": "anitya",
                   "project-id": 8648,
@@ -57,19 +57,19 @@
       "buildsystem" : "simple",
       "sources" : [
         {
-          "url": "https://www.hoptodesk.com/hoptodesk-1.42.1-0-x86_64.deb",
-          "sha256": "6fb51d3d61fb82124d153a5f1f554acf72d6597152ed867ab17184b673935ee6",
+          "url": "https://www.hoptodesk.com/hoptodesk-1.43.1-0-x86_64.deb",
+          "sha256": "7da6190d9cbc0be43c379d415cfd43afd73dcf449e614825734e3d50d708fa32",
           "type" : "file",
           "dest-filename": "hoptodesk.deb"
         },
         {
           "url": "https://gitlab.com/hoptodesk/hoptodesk/-/raw/ab5356ba2ce36e3ee0bab6e30cc051ad07c49ecd/res/logo.svg",
-          "sha256": "7107616c5649a5bd952479f02fb4619f764578fa8bcf54c4ea4bc5466244895b",
+          "sha256": "7da6190d9cbc0be43c379d415cfd43afd73dcf449e614825734e3d50d708fa32",
           "type" : "file"
         },
         {
           "url": "https://gitlab.com/hoptodesk/hoptodesk/-/raw/8a23180c5be8ee3ad5def877f02d4d460134c55e/flatpak/com.hoptodesk.HopToDesk.metainfo.xml",
-          "sha256": "16b2f6e00a88b4431e164c78f823fe92d5c10909a288e2a441e5bfe90168b8b6",
+          "sha256": "7da6190d9cbc0be43c379d415cfd43afd73dcf449e614825734e3d50d708fa32",
           "type" : "file"
         },
         {
