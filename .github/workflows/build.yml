@@ -1,82 +1,90 @@
-name: Update HopToDesk Flatpak
+name: Auto‑update & Build HopToDesk Flatpak
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # Runs daily at midnight UTC
-  workflow_dispatch:      # Allows manual triggering
+    - cron: '0 0 * * *'
+  workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
-env:
-  # You can adjust the default values or remove them if not needed.
-  TAG_NAME: "latest"
+    branches: [ main, master ]
 
 jobs:
-  update-flatpak:
+  update-manifest:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      sha:     ${{ steps.vars.outputs.sha256 }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Install Dependencies
+      - name: Download latest HopToDesk .deb
+        run: curl -L -o hoptodesk.deb https://www.hoptodesk.com/hoptodesk.deb
+
+      - name: Extract version & SHA256
+        id: vars
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl flatpak flatpak-builder jq
+          VERSION=$(dpkg-deb -f hoptodesk.deb Version | cut -d'-' -f1)
+          SHA256=$(sha256sum hoptodesk.deb | cut -d' ' -f1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256"   >> $GITHUB_OUTPUT
 
-      - name: Get Latest HopToDesk Version
-        id: get_version
+      - name: Bump dest-filename & sha256 in manifest
         run: |
-          # Change the repo URL if your upstream project is elsewhere.
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/HopToDesk/HopToDesk/releases/latest | jq -r '.tag_name')
-          echo "Latest version is: $LATEST_VERSION"
-          echo "VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+          VERSION="${{ steps.vars.outputs.version }}"
+          SHA="${{ steps.vars.outputs.sha256 }}"
+          
+          sed -i -E \
+            "/dest-filename\": \"hoptodesk-${VERSION}-0-x86_64.deb\"/{n;s#\"sha256\": \"[0-9a-f]+\"#\"sha256\": \"${SHA}\"#;}" \
+            com.hoptodesk.HopToDesk.json
 
-      - name: Update Flatpak Manifest
-        run: |
-          # This assumes the manifest file is named "com.hoptodesk.HopToDesk.json" and contains a field "version"
-          sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" com.hoptodesk.HopToDesk.json
-          echo "Updated manifest contents:"
-          cat com.hoptodesk.HopToDesk.json
-
-      - name: Build Flatpak Package
-        run: |
-          mkdir -p repo
-          # Make sure the flathub remote is added.
-          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          # Build the package. Adjust the path to your manifest file if needed.
-          flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo build com.hoptodesk.HopToDesk.json
-          # Bundle the built repo into a Flatpak file.
-          flatpak build-bundle repo HopToDesk-${VERSION}.flatpak com.hoptodesk.HopToDesk
-
-      - name: Commit and Push Manifest Changes
-        run: |
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
-          git add com.hoptodesk.HopToDesk.json
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "Update HopToDesk to version ${VERSION}"
-            git push
-          else
-            echo "No changes to commit."
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
         with:
-        
-          tag_name: ${{ env.VERSION }}
-          name: "HopToDesk ${VERSION}"
-          body: "Updated HopToDesk Flatpak package to version ${VERSION}"
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update-hoptodesk-${{ steps.vars.outputs.version }}
+          title: "Update HopToDesk to v${{ steps.vars.outputs.version }}"
+          body: |
+            Automated update of HopToDesk Flatpak manifest to version **${{ steps.vars.outputs.version }}**.
+          labels: automated-update
 
-      - name: Upload Flatpak Bundle as Release Asset
-        uses: softprops/action-gh-release@v1
+  build-flatpak:
+    needs: update-manifest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            distro: ubuntu18.04
+          - arch: x86_64
+            distro: ubuntu20.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-qemu-action@v2
+
+      - name: Build Flatpak on ${{ matrix.arch }} / ${{ matrix.distro }}
+        uses: rustdesk-org/run-on-arch-action@amd64-support
         with:
-          tag_name: ${{ env.VERSION }}
-          files: |
-            HopToDesk-${VERSION}.flatpak
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          install: |
+            set -eux
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive \
+              apt-get install -y --no-install-recommends \
+                ca-certificates git flatpak flatpak-builder
+            update-ca-certificates
+            rm -rf /var/lib/apt/lists/*
+          run: |
+            set -eux
+            rm -rf shared-modules
+            git clone https://github.com/flathub/shared-modules.git --depth=1
+            flatpak --user remote-add --if-not-exists flathub \
+              https://dl.flathub.org/repo/flathub.flatpakrepo
+            flatpak-builder \
+              --force-clean \
+              --install-deps-from=flathub \
+              --user \
+              --repo=repo \
+              build-dir \
+              com.hoptodesk.HopToDesk.json
