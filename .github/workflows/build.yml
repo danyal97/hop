@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
-  push:
+  pull_request:
     branches: [ main, master ]
 
 jobs:
@@ -36,15 +36,18 @@ jobs:
             "/dest-filename\": \"hoptodesk-${VERSION}-0-x86_64.deb\"/{n;s#\"sha256\": \"[0-9a-f]+\"#\"sha256\": \"${SHA}\"#;}" \
             com.hoptodesk.HopToDesk.json
 
+      - name: Get default branch
+        id: default-branch
+        run: echo "branch=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)" >> $GITHUB_OUTPUT
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: update-hoptodesk-${{ steps.vars.outputs.version }}
-          title: "Update HopToDesk to v${{ steps.vars.outputs.version }}"
-          body: |
-            Automated update of HopToDesk Flatpak manifest to version **${{ steps.vars.outputs.version }}**.
-          labels: automated-update
+          base: ${{ steps.default-branch.outputs.branch }}
+
+  # Removed duplicate build-flatpak job definition
 
   build-flatpak:
     needs: update-manifest
@@ -52,46 +55,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86_64
-            distro: ubuntu18.04
-          - arch: x86_64
-            distro: ubuntu20.04
-
-      - name: Extract version & SHA256
-        id: vars
-        run: |
-          VERSION=$(dpkg-deb -f hoptodesk.deb Version | cut -d'-' -f1)
-          SHA256=$(sha256sum hoptodesk.deb | cut -d' ' -f1)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "sha256=$SHA256"   >> $GITHUB_OUTPUT
-
-      - name: Bump dest-filename & sha256 in manifest
-        run: |
-          VERSION="${{ steps.vars.outputs.version }}"
-          SHA="${{ steps.vars.outputs.sha256 }}"
-          
-          sed -i -E \
-            "/dest-filename\": \"hoptodesk-${VERSION}-0-x86_64.deb\"/{n;s#\"sha256\": \"[0-9a-f]+\"#\"sha256\": \"${SHA}\"#;}" \
-            com.hoptodesk.HopToDesk.json
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update-hoptodesk-${{ steps.vars.outputs.version }}
-          title: "Update HopToDesk to v${{ steps.vars.outputs.version }}"
-          body: |
-            Automated update of HopToDesk Flatpak manifest to version **${{ steps.vars.outputs.version }}**.
-          labels: automated-update
-
-  build-flatpak:
-    needs: update-manifest
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            distro: ubuntu18.04
           - arch: x86_64
             distro: ubuntu20.04
     steps:
@@ -109,8 +72,14 @@ jobs:
             apt-get update
             DEBIAN_FRONTEND=noninteractive \
               apt-get install -y --no-install-recommends \
-                ca-certificates git flatpak flatpak-builder patch
-                ca-certificates git flatpak flatpak-builder
+                ca-certificates \
+                git \
+                flatpak \
+                flatpak-builder \
+                patch \
+                elfutils \
+                xz-utils \
+                librsvg2-common
             update-ca-certificates
             rm -rf /var/lib/apt/lists/*
           run: |
@@ -126,3 +95,11 @@ jobs:
               --repo=repo \
               build-dir \
               com.hoptodesk.HopToDesk.json
+
+      - name: Upload Flatpak Bundle
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: hoptodesk-${{ matrix.arch }}.flatpak
+          asset_name: hoptodesk-${{ matrix.arch }}.flatpak
+          tag: ${{ github.ref }}
