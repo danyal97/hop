@@ -82,14 +82,13 @@
         "/lib/pkgconfig",
         "/share/gtk-doc"
       ],
-      "build-commands": [
+      "build-commands" : [
         "bsdtar -Oxf hoptodesk.deb data.tar.xz | bsdtar -xf -",
         "cp -r ./usr/*  /app/",
         "install -Dm644 com.hoptodesk.HopToDesk.desktop /app/share/applications/com.hoptodesk.HopToDesk.desktop",
         "install -Dm644 com.hoptodesk.HopToDesk.metainfo.xml /app/share/metainfo/com.hoptodesk.HopToDesk.metainfo.xml",
-        "install -Dm644 logo.svg /app/share/icons/hicolor/scalable/apps/com.hoptodesk.HopToDesk.svg",
-        "ln -sf /app/bin/HopToDesk /app/bin/hoptodesk"
-    ]
+        "install -Dm644 logo.svg /app/share/icons/hicolor/scalable/apps/com.hoptodesk.HopToDesk.svg"
+      ]
     }
   ]
 }
